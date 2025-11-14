@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Chat.h"
 #include "Costumes.h"
 #include "Config.h"
 #include "SpellAuraEffects.h"
@@ -109,9 +110,21 @@ struct PlayerState
 };
 
 Costumes::Costumes()
-    : PlayerScript("CostumesPlayerScript"),
-      WorldScript("CostumesWorldScript"),
-      UnitScript("CostumesUnitScript"),
+    : PlayerScript("CostumesPlayerScript", {
+        PLAYERHOOK_CAN_USE_ITEM,
+        PLAYERHOOK_ON_PLAYER_ENTER_COMBAT,
+        PLAYERHOOK_ON_MAP_CHANGED,
+        PLAYERHOOK_ON_UPDATE
+    }),
+      WorldScript("CostumesWorldScript", {
+        WORLDHOOK_ON_UPDATE,
+        WORLDHOOK_ON_STARTUP,
+        WORLDHOOK_ON_SHUTDOWN,
+        WORLDHOOK_ON_AFTER_CONFIG_LOAD
+      }),
+      UnitScript("CostumesUnitScript", true, {
+        UNITHOOK_ON_DISPLAYID_CHANGE
+      }),
       enabled(false),
       costumeSpellId(0),
       defaultDuration(0),
@@ -123,7 +136,7 @@ Costumes::Costumes()
 {
 }
 
-bool Costumes::CanUseItem(Player *player, ItemTemplate const *item, InventoryResult &result)
+bool Costumes::OnPlayerCanUseItem(Player *player, ItemTemplate const *item, InventoryResult &result)
 {
     if (!enabled || !player || !item || (uint32)item->Spells[0].SpellId != (uint32)costumeSpellId)
     {
@@ -188,7 +201,7 @@ bool Costumes::CanUseItem(Player *player, ItemTemplate const *item, InventoryRes
         {
             formattedTime = fmt::format("{:02}s", seconds);
         }
-        player->GetSession()->SendNotification("Cooldown: %s", formattedTime.c_str());
+        ChatHandler(player->GetSession()).SendNotification("Cooldown: {}", formattedTime);
 
         result = InventoryResult::EQUIP_ERR_CANT_DO_RIGHT_NOW;
         return false;
@@ -274,7 +287,7 @@ void Costumes::OnDisplayIdChange(Unit *unit, uint32 displayId)
     }
 }
 
-void Costumes::OnMapChanged(Player* player)
+void Costumes::OnPlayerMapChanged(Player* player)
 {
     if (!player || !IsPlayerMorphed(player))
     {
@@ -298,7 +311,7 @@ void Costumes::OnMapChanged(Player* player)
     }
 }
 
-void Costumes::OnUpdate(Player* /* player */, uint32 /* p_time */) {}
+void Costumes::OnPlayerUpdate(Player* /* player */, uint32 /* p_time */) {}
 
 void Costumes::OnUpdate(uint32 diff)
 {
